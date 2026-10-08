@@ -1,0 +1,10 @@
+fastapi==0.143.0
+starlette==1.7.0
+pydantic==2.13.5
+httpx==0.28.1
+python-dotenv==1.2.2
+python-multipart==0.0.32
+tzdata==2025.2
+uvicorn[standard]==0.35.0
+websockets==14.2
+twilio==9.11.0

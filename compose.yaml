@@ -1,0 +1,14 @@
+services:
+  receptionist:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - appointments:/data
+      - ./examples:/app/examples:ro
+    restart: unless-stopped
+volumes:
+  appointments:

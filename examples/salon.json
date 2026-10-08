@@ -1,0 +1,62 @@
+{
+  "name": "Example Hair Studio",
+  "assistant_name": "Alex",
+  "timezone": "America/Los_Angeles",
+  "currency": "USD",
+  "address": "123 Example Street, Example City",
+  "phone": "",
+  "capacity": 2,
+  "hours": {
+    "0": [
+      [
+        "09:00",
+        "17:00"
+      ]
+    ],
+    "1": [
+      [
+        "09:00",
+        "17:00"
+      ]
+    ],
+    "2": [
+      [
+        "09:00",
+        "17:00"
+      ]
+    ],
+    "3": [
+      [
+        "09:00",
+        "17:00"
+      ]
+    ],
+    "4": [
+      [
+        "09:00",
+        "17:00"
+      ]
+    ]
+  },
+  "policies": [
+    "Appointments require customer confirmation. Staff handles changes and cancellations."
+  ],
+  "services": [
+    {
+      "id": "haircut",
+      "name": "Haircut",
+      "prices": {
+        "30": 35,
+        "60": 60
+      },
+      "buffer_minutes": 10
+    },
+    {
+      "id": "color",
+      "name": "Hair Coloring",
+      "prices": {
+        "90": 120
+      }
+    }
+  ]
+}

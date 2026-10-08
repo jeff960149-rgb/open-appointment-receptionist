@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kspa 真實電話測試</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;color:#f4efe8;background:#10100f}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#30251b,transparent 60%);min-height:100vh}
+main{max-width:620px;margin:auto;padding:60px 24px}.eyebrow{color:#dcae72;letter-spacing:.16em;font-size:12px}
+h1{font-size:36px;font-weight:550;margin:12px 0}p{color:#bcb3aa;line-height:1.75}
+.card{border:1px solid #403830;background:#1b1916;border-radius:24px;padding:26px;margin-top:26px}
+.route{display:grid;gap:16px}.route span{font-size:13px;color:#aaa096}.route strong{display:block;font-size:23px;margin-top:5px;font-weight:500}
+.arrow{color:#dcae72}#status{margin:26px 0 8px;color:#f4efe8}#timer{font-variant-numeric:tabular-nums;color:#dcae72;min-height:24px}
+.buttons{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}button{font:inherit;cursor:pointer;border:1px solid #665444;border-radius:30px;padding:14px 22px;background:#25211c;color:#eee}
+.capacity{background:#dcae7212;border:1px solid #6b5035;border-radius:14px;padding:15px;margin-top:24px;font-size:14px;line-height:1.7}.capacity label{display:block;margin-top:10px;cursor:pointer}.capacity input{width:18px;height:18px;vertical-align:middle;accent-color:#dcae72;margin-right:8px}
+button.primary{background:#dcae72;color:#21180e;border-color:#dcae72}button:disabled{opacity:.4;cursor:default}
+#error{color:#ffb5a7;white-space:pre-wrap}a{color:#dcae72}.small{font-size:13px}#hangup{border-color:#875346}
+@media(max-width:480px){main{padding:30px 18px}h1{font-size:30px}.card{padding:20px}}
+</style>
+</head>
+<body><main>
+<div class="eyebrow">KSPA · PHONE TEST</div>
+<h1>用網路，打一通真實電話。</h1>
+<p>戴上耳機，允許麥克風，然後撥給 Kspa。這通電話會經過正式來電流程。</p>
+<p>要測試 Kiki，請先開啟 AI 接手，並讓 Zoiper 和手機保持響鈴、不要接聽。人工接聽或語音信箱接通後，就不會轉到 AI。</p>
+<section class="card">
+<div class="route"><div><span>來電顯示 · Footprint</span><strong>__FROM__</strong></div>
+<div class="arrow">↓</div><div><span>撥打對象 · Kspa</span><strong>__TO__</strong></div></div>
+<div class="capacity">此帳戶最多同時 3 路通話。這次測試可能用滿容量，期間 Footprint 與 Kspa 的新來電可能無法接入。請在兩間店可暫停接聽的時段測試，完成後立即掛斷。
+<label><input type="checkbox" id="capacity">我已確認現在可以進行這項測試。</label></div>
+<p id="status" role="status" aria-live="polite">準備就緒</p><div id="timer">最長 5 分鐘</div>
+<div class="buttons"><button class="primary" id="call" disabled>撥給 Kspa</button><button id="hangup" disabled>掛斷</button><button id="mute" disabled>靜音</button></div>
+<p id="error" role="alert"></p>
+</section>
+<p class="small">會產生 Twilio 通話費。帳戶已有通話時，測試會暫停。預約確認後會占用真實空檔，請使用可供測試的時段。</p>
+<p class="small">來電通知與對話紀錄請在 Kspa Telegram 查看。Smiley 是否寫入，以預約結果通知為準。</p>
+<a href="/voice-test">回到一般語音測試頁</a>
+</main>
+<script src="/phone-test/sdk-2.18.4.js"></script>
+<script>
+let device=null, activeCall=null, identity=null, timer=null, generation=0;
+const el=id=>document.getElementById(id);
+async function api(path,body={}){
+  const r=await fetch('/phone-test/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const data=await r.json();if(!r.ok)throw new Error(data.detail||'連線失敗，請稍後再試。');return data;
+}
+function finish(message='通話已結束'){
+  generation++;
+  clearInterval(timer);timer=null;activeCall=null;
+  if(device){const old=device;device=null;old.destroy();}
+  if(identity){api('release',{identity}).catch(()=>{});identity=null;}
+  el('status').textContent=message;el('capacity').disabled=false;el('capacity').checked=false;el('call').disabled=true;el('hangup').disabled=true;el('mute').disabled=true;el('mute').textContent='靜音';
+}
+el('capacity').onchange=()=>{el('call').disabled=!el('capacity').checked;};
+el('call').onclick=async()=>{
+  if(!el('capacity').checked)return;
+  const run=++generation;el('capacity').disabled=true;el('call').disabled=true;el('error').textContent='';el('status').textContent='請允許使用麥克風…';
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());
+    const data=await api('token',{acknowledge_shared_capacity:true});identity=data.identity;
+    device=new Twilio.Device(data.token,{logLevel:1,codecPreferences:['opus','pcmu']});
+    device.on('error',error=>{if(run!==generation)return;el('error').textContent='電話連線錯誤（'+error.code+'），請稍後再試。';finish('連線中斷');});
+    el('status').textContent='正在撥給 Kspa…';el('hangup').disabled=false;
+    const call=await device.connect({params:{To:data.to}});
+    if(run!==generation){call.disconnect();return;}activeCall=call;
+    call.on('ringing',()=>{if(run===generation)el('status').textContent='Kspa 響鈴中…';});
+    call.on('accept',()=>{if(run!==generation)return;el('status').textContent='已接通，請開始說話';el('mute').disabled=false;const start=Date.now();
+      timer=setInterval(()=>{const s=Math.floor((Date.now()-start)/1000);el('timer').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');},1000);});
+    call.on('disconnect',()=>{if(run===generation)finish();});call.on('cancel',()=>{if(run===generation)finish('通話已取消');});
+    call.on('error',e=>{if(run!==generation)return;el('error').textContent='通話錯誤（'+e.code+'）。';finish('未能接通');});
+  }catch(e){if(run!==generation)return;el('error').textContent=e.name==='NotAllowedError'?'請在瀏覽器允許麥克風後再試。':e.message;finish('未能撥出');}
+};
+el('hangup').onclick=()=>{if(activeCall)activeCall.disconnect();else if(device)device.disconnectAll();finish();};
+el('mute').onclick=()=>{if(activeCall){activeCall.mute(!activeCall.isMuted());el('mute').textContent=activeCall.isMuted()?'取消靜音':'靜音';}};
+window.addEventListener('pagehide',()=>{if(device)device.destroy();});
+</script></body></html>
